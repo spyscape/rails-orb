@@ -1,0 +1,75 @@
+version: 2.1
+
+description: |
+  Build Rails apps
+
+executors:
+  default:
+    description: Uses the circleci ruby image and the postgres docker image
+    parameters:
+      ruby-version:
+        type: string
+      postgres-version:
+        type: string
+      pg-user:
+        type: string
+      pg-db:
+        type: string
+
+    docker:
+      - image: circleci/ruby:<< parameters.ruby-version >>
+        environment:
+          RAILS_ENV: test
+          RACK_ENV: test
+          PGHOST: localhost
+          PGUSER: << parameters.pg-user >>
+      - image: postgres:<< parameters.postgres-version >>
+        environment:
+          POSTGRES_USER: << parameters.pg-user >>
+          POSTGRES_DB: << parameters.pg-db >>
+
+commands:
+  build-app:
+    steps:
+      - run: gem update --system
+      - run: gem install bundler
+
+      - restore_cache:
+          key: rails-{{ checksum "Gemfile.lock" }}
+
+      - run: bundle install --path vendor/bundle --jobs=4 --retry=3
+
+      - save_cache:
+          key: rails-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
+
+      - run: bundle exec rake db:setup
+      - run: bundle exec ./bin/test
+
+jobs:
+  build:
+    description: Builds a Rails app
+    parameters:
+      ruby-version:
+        default: "latest"
+        description: Ruby version to use
+        type: string
+      postgres-version:
+        default: "9.6"
+        description: Postgres version to use
+        type: string
+      pg-user:
+        type: string
+        default: "pg_user"
+      pg-db:
+        type: string
+    executor:
+      name: default
+      ruby-version: << parameters.ruby-version >>
+      postgres-version: << parameters.postgres-version >>
+      pg-user: << parameters.pg-user >>
+      pg-db: << parameters.pg-db >>
+    steps:
+      - checkout
+      - build-app
