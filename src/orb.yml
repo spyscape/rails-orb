@@ -17,7 +17,7 @@ executors:
         type: string
 
     docker:
-      - image: circleci/ruby:<< parameters.ruby-version >>
+      - image: circleci/ruby:<< parameters.ruby-version >>-node
         environment:
           RAILS_ENV: test
           RACK_ENV: test
@@ -34,6 +34,7 @@ commands:
       test-command:
         type: string
     steps:
+      - run: npm install
       - run: gem update --system
       - run: gem install bundler
 
