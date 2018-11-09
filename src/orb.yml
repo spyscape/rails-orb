@@ -33,6 +33,8 @@ commands:
     parameters:
       test-command:
         type: string
+      pg-db:
+        type: string
     steps:
       - run: npm install
       - run: gem update --system
@@ -48,7 +50,11 @@ commands:
           paths:
             - vendor/bundle
 
-      - run: bundle exec rake db:setup
+      - when:
+          condition: << parameters.pg-db >>
+          steps:
+            - run: bundle exec rake db:setup
+
       - run: << parameters.test-command >>
 
 jobs:
@@ -68,6 +74,7 @@ jobs:
         default: "pguser"
       pg-db:
         type: string
+        default: ''
       test-command:
         type: string
         default: bundle exec ./bin/test
@@ -81,3 +88,4 @@ jobs:
       - checkout
       - build-app:
           test-command: << parameters.test-command >>
+          pg-db: << parameters.pg-db >>
