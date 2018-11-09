@@ -61,7 +61,7 @@ jobs:
         type: string
       pg-user:
         type: string
-        default: "pg_user"
+        default: "pguser"
       pg-db:
         type: string
     executor:
