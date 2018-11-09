@@ -30,6 +30,9 @@ executors:
 
 commands:
   build-app:
+    parameters:
+      test-command:
+        type: string
     steps:
       - run: gem update --system
       - run: gem install bundler
@@ -45,7 +48,7 @@ commands:
             - vendor/bundle
 
       - run: bundle exec rake db:setup
-      - run: bundle exec ./bin/test
+      - run: << parameters.test-command >>
 
 jobs:
   build:
@@ -64,6 +67,9 @@ jobs:
         default: "pguser"
       pg-db:
         type: string
+      test-command:
+        type: string
+        default: bundle exec ./bin/test
     executor:
       name: default
       ruby-version: << parameters.ruby-version >>
@@ -72,4 +78,5 @@ jobs:
       pg-db: << parameters.pg-db >>
     steps:
       - checkout
-      - build-app
+      - build-app:
+          test-command: << parameters.test-command >>
