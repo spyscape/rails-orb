@@ -39,7 +39,7 @@ commands:
         type: boolean
     steps:
       - run: npm install
-      - run: gem update --system
+      - run: sudo gem update --system
       - run: gem install bundler
 
       - restore_cache:
