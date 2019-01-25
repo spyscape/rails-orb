@@ -43,12 +43,12 @@ commands:
       - run: gem install bundler
 
       - restore_cache:
-          key: rails-{{ checksum "Gemfile.lock" }}
+          key: rails-{{ checksum "Gemfile" }}
 
       - run: bundle install --path vendor/bundle --jobs=4 --retry=3
 
       - save_cache:
-          key: rails-{{ checksum "Gemfile.lock" }}
+          key: rails-{{ checksum "Gemfile" }}
           paths:
             - vendor/bundle
 
