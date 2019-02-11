@@ -38,7 +38,6 @@ commands:
       build-assets:
         type: boolean
     steps:
-      - run: npm install
       - run: sudo gem update --system
       - run: gem install bundler
 
