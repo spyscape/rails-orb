@@ -9,6 +9,8 @@ executors:
     parameters:
       ruby-version:
         type: string
+      image-options:
+        type: string
       postgres-version:
         type: string
       pg-user:
@@ -17,7 +19,7 @@ executors:
         type: string
 
     docker:
-      - image: circleci/ruby:<< parameters.ruby-version >>-node
+      - image: circleci/ruby:<< parameters.ruby-version >><< parameters.image-options >>
         environment:
           RAILS_ENV: test
           RACK_ENV: test
@@ -76,6 +78,10 @@ jobs:
         default: "latest"
         description: Ruby version to use
         type: string
+      image-options:
+        default: ""
+        description: Docker image tag options
+        type: string
       postgres-version:
         default: "9.6"
         description: Postgres version to use
@@ -96,6 +102,7 @@ jobs:
     executor:
       name: default
       ruby-version: << parameters.ruby-version >>
+      image-options: << parameters.image-options >>
       postgres-version: << parameters.postgres-version >>
       pg-user: << parameters.pg-user >>
       pg-db: << parameters.pg-db >>
