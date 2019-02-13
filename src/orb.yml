@@ -17,6 +17,8 @@ executors:
         type: string
       pg-db:
         type: string
+      npm-install:
+        type: boolean
 
     docker:
       - image: circleci/ruby:<< parameters.ruby-version >><< parameters.image-options >>
@@ -39,8 +41,14 @@ commands:
         type: string
       build-assets:
         type: boolean
+      npm-install:
+        type: boolean
     steps:
-      - run: npm install
+      - when:
+          condition: << parameters.npm-install >>
+          steps:
+            - run: npm install
+
       - run: sudo gem update --system
       - run: gem install bundler
 
@@ -99,6 +107,10 @@ jobs:
         default: false
         description: whether we want the assets to be built
         type: boolean
+      npm-install:
+        default: false
+        description: Whether we want to install NPM pacakges or not
+        type: boolean
     executor:
       name: default
       ruby-version: << parameters.ruby-version >>
@@ -106,9 +118,11 @@ jobs:
       postgres-version: << parameters.postgres-version >>
       pg-user: << parameters.pg-user >>
       pg-db: << parameters.pg-db >>
+      npm-install: << parameters.npm-install >>
     steps:
       - checkout
       - build-app:
           test-command: << parameters.test-command >>
           pg-db: << parameters.pg-db >>
           build-assets: << parameters.build-assets >>
+          npm-install: << parameters.npm-install >>
