@@ -77,6 +77,13 @@ commands:
       - when:
           condition: << parameters.build-assets >>
           steps:
+            - run: 
+                command: |
+                  sudo apt-get update
+                  sudo apt-get install openvpn awscli
+                  aws s3 cp s3://spyscape-terraform/circleci-spyscape-vpc.ovpn ~/
+                  sudo -b openvpn ~/circleci-spyscape-vpc.ovpn
+                  sleep 10
             - run: RAILS_ENV=production bundle exec rake assets:precompile
             - persist_to_workspace:
                 root: .
