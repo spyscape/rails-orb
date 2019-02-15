@@ -71,6 +71,7 @@ commands:
           condition: << parameters.build-assets >>
           steps:
             - run: RAILS_ENV=test bundle exec rake assets:precompile
+            - run: RAILS_ENV=production bundle exec rails webpacker:compile
             - persist_to_workspace:
                 root: .
                 paths:
