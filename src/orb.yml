@@ -43,6 +43,8 @@ commands:
         type: boolean
       npm-install:
         type: boolean
+      collect-artifacts:
+        type: boolean
     steps:
       - when:
           condition: << parameters.npm-install >>
@@ -79,6 +81,12 @@ commands:
 
       - run: << parameters.test-command >>
 
+      - when:
+          condition: << parameters.collect-artifacts >>
+          steps:
+            - store_artifacts:
+                path: coverage
+
 jobs:
   build:
     description: Builds a Rails app
@@ -112,6 +120,10 @@ jobs:
         default: false
         description: Whether we want to install NPM pacakges or not
         type: boolean
+      collect-artifacts:
+        default: false
+        description: Whether we want to collect output artifacts
+        type: boolean
     executor:
       name: default
       ruby-version: << parameters.ruby-version >>
@@ -127,3 +139,4 @@ jobs:
           pg-db: << parameters.pg-db >>
           build-assets: << parameters.build-assets >>
           npm-install: << parameters.npm-install >>
+          collect-artifacts: << parameters.collect-artifacts >>
