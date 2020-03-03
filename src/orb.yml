@@ -31,6 +31,7 @@ executors:
         environment:
           POSTGRES_USER: << parameters.pg-user >>
           POSTGRES_DB: << parameters.pg-db >>
+          POSTGRES_HOST_AUTH_METHOD: trust
 
 commands:
   build-app:
