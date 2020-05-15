@@ -1,11 +1,15 @@
 version: 2.1
 
 description: |
-  Build Rails apps
+  Test, build and deploy Rails apps
+
+orbs:
+  code-deploy: circleci/aws-code-deploy@1.0.1
+  aws-cli: circleci/aws-cli@1.0.0
 
 executors:
   default:
-    description: Uses the circleci ruby image and the postgres docker image
+    description: Uses the CircleCI Ruby image and the PostgreSQL Docker image
     parameters:
       ruby-version:
         type: string
@@ -34,7 +38,43 @@ executors:
           POSTGRES_HOST_AUTH_METHOD: trust
 
 commands:
+  yarn-install:
+    description: "Install JavaScript dependencies with Yarn"
+    steps:
+      - restore_cache:
+          key: yarn-cache-v1-{{ checksum "yarn.lock" }}
+      - run: yarn install --frozen-lockfile
+      - save_cache:
+          key: yarn-cache-v1-{{ checksum "yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
+
+  bundle-install:
+    description: "Install Ruby dependencies with Bundler"
+    steps:
+      - run: sudo gem update --system
+      - run: gem install bundler
+      - restore_cache:
+          key: gem-cache-v3-{{ checksum "Gemfile.lock" }}
+      - run: bundle install --jobs=2 --retry=3 --deployment --path=vendor/bundle
+      - save_cache:
+          key: gem-cache-v3-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
+
+  bundle-package:
+    description: "Vendor all gems with bundle package to vendor/cache"
+    steps:
+      - restore_cache:
+          key: bundle-cache-v1-{{ checksum "Gemfile.lock" }}
+      - run: bundle package --no-install --all
+      - save_cache:
+          key: bundle-cache-v1-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/cache
+
   build-app:
+    description: "Build, test and compile assets for a Rails app"
     parameters:
       test-command:
         type: string
@@ -52,19 +92,7 @@ commands:
           steps:
             - run: npm install
 
-      - run: sudo gem update --system
-      - run: gem install bundler
-      - run: bundle config set path 'vendor/bundle'
-
-      - restore_cache:
-          key: rails-{{ checksum "Gemfile.lock" }}
-
-      - run: bundle install --jobs=4 --retry=3
-
-      - save_cache:
-          key: rails-{{ checksum "Gemfile.lock" }}
-          paths:
-            - vendor/bundle
+      - bundle-install
 
       - when:
           condition: << parameters.pg-db >>
@@ -90,7 +118,7 @@ commands:
 
 jobs:
   build:
-    description: Builds a Rails app
+    description: "Build, test and optionally compile assets for a Rails app"
     parameters:
       ruby-version:
         default: "latest"
@@ -98,11 +126,11 @@ jobs:
         type: string
       image-options:
         default: ""
-        description: Docker image tag options
+        description: Docker image options to append to the Ruby image tag
         type: string
       postgres-version:
         default: "9.6"
-        description: Postgres version to use
+        description: PostgreSQL version to use
         type: string
       pg-user:
         type: string
@@ -141,3 +169,61 @@ jobs:
           build-assets: << parameters.build-assets >>
           npm-install: << parameters.npm-install >>
           collect-artifacts: << parameters.collect-artifacts >>
+
+  push:
+    description: "Bundle up the application and assets to CodeDeploy as a revision"
+    parameters:
+      application-name:
+        type: string
+      bundle-bucket:
+        type: string
+      bundle-key:
+        type: string
+    executor: aws-cli/default
+    environment:
+      AWS_PAGER: ""
+    steps:
+      - aws-cli/setup
+      - checkout
+      - attach_workspace:
+          at: .
+      - code-deploy/create-application:
+          application-name: << parameters.application-name >>
+      - code-deploy/push-bundle:
+          application-name: << parameters.application-name >>
+          bundle-bucket: << parameters.bundle-bucket >>
+          bundle-key: << parameters.bundle-key >>
+
+  deploy:
+    description: "Deploy a bundle using CodeDeploy"
+    parameters:
+      application-name:
+        type: string
+      deployment-group:
+        type: string
+        default: staging
+      service-role-arn:
+        type: string
+      deployment-config:
+        type: string
+        default: CodeDeployDefault.AllAtOnce
+      bundle-bucket:
+        type: string
+      bundle-key:
+        type: string
+    executor: aws-cli/default
+    environment:
+      AWS_PAGER: ""
+    steps:
+      - aws-cli/setup
+      - code-deploy/create-deployment-group:
+          application-name: << parameters.application-name >>
+          service-role-arn: << parameters.service-role-arn >>
+          deployment-config: << parameters.deployment-config >>
+          deployment-group: << parameters.deployment-group >>
+      - code-deploy/deploy-bundle:
+          application-name: << parameters.application-name >>
+          bundle-bucket: << parameters.bundle-bucket >>
+          bundle-key: << parameters.bundle-key >>
+          deployment-config: << parameters.deployment-config >>
+          deployment-group: << parameters.deployment-group >>
