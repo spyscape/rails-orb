@@ -5,7 +5,9 @@ description: |
 
 orbs:
   code-deploy: circleci/aws-code-deploy@1.0.1
-  aws-cli: circleci/aws-cli@1.0.0
+  aws-ecr: circleci/aws-ecr@7.3.0
+  aws-ecs: circleci/aws-ecs@2.2.1
+  aws-cli: circleci/aws-cli@2.0.6
 
 executors:
   default:
@@ -84,6 +86,8 @@ commands:
         type: boolean
       npm-install:
         type: boolean
+      yarn-install:
+        type: boolean
       collect-artifacts:
         type: boolean
     steps:
@@ -91,6 +95,11 @@ commands:
           condition: << parameters.npm-install >>
           steps:
             - run: npm install
+
+      - when:
+          condition: << parameters.yarn-install >>
+          steps:
+            - yarn-install
 
       - bundle-install
 
@@ -137,7 +146,7 @@ jobs:
         default: "pguser"
       pg-db:
         type: string
-        default: ''
+        default: ""
       test-command:
         type: string
         default: bundle exec ./bin/test
@@ -148,6 +157,10 @@ jobs:
       npm-install:
         default: false
         description: Whether we want to install NPM pacakges or not
+        type: boolean
+      yarn-install:
+        default: false
+        description: Install JavaScript dependencies with Yarn
         type: boolean
       collect-artifacts:
         default: false
@@ -168,6 +181,7 @@ jobs:
           pg-db: << parameters.pg-db >>
           build-assets: << parameters.build-assets >>
           npm-install: << parameters.npm-install >>
+          yarn-install: << parameters.yarn-install >>
           collect-artifacts: << parameters.collect-artifacts >>
 
   push:
@@ -193,6 +207,21 @@ jobs:
           application-name: << parameters.application-name >>
           bundle-bucket: << parameters.bundle-bucket >>
           bundle-key: << parameters.bundle-key >>
+
+  push-ecr:
+    description: Build Docker image and push to AWS ECR
+    parameters:
+      repo:
+        type: string
+      tag:
+        type: string
+    executor:
+      name: aws-ecr/default
+      use-docker-layer-caching: true
+    steps:
+      - aws-ecr/build-and-push-image:
+          repo: << parameters.repo >>
+          tag: << parameters.tag >>
 
   deploy:
     description: "Deploy a bundle using CodeDeploy"
@@ -227,3 +256,44 @@ jobs:
           bundle-key: << parameters.bundle-key >>
           deployment-config: << parameters.deployment-config >>
           deployment-group: << parameters.deployment-group >>
+
+  deploy-ecs:
+    description: Deploy application to AWS ECS
+    executor: aws-cli/default
+    parameters:
+      application-name:
+        type: string
+      environment:
+        type: string
+      repo:
+        type: string
+      tag:
+        type: string
+    steps:
+      - checkout
+      - aws-cli/setup
+      - run:
+          name: Evaluate task definition template
+          command: |
+            export APP_ENV="<< parameters.environment >>"
+            export APP_IMAGE="${AWS_ECR_ACCOUNT_URL}/<< parameters.repo >>:<< parameters.tag >>"
+            curl -L https://github.com/a8m/envsubst/releases/download/v1.2.0/envsubst-`uname -s`-`uname -m` -o envsubst
+            chmod +x envsubst
+            ./envsubst < apptaskdef.json > apptaskdef-output.json
+      - aws-ecs/update-task-definition-from-json:
+          task-definition-json: apptaskdef-output.json
+      - aws-ecs/update-service:
+          cluster-name: << parameters.application-name >>-<< parameters.environment >>
+          family: << parameters.application-name >>-<< parameters.environment >>
+          service-name: << parameters.application-name >>-<< parameters.environment >>
+          skip-task-definition-registration: true
+          verify-revision-is-deployed: true
+          poll-interval: 10
+      - run:
+          name: Update parameter store
+          command: >
+            aws ssm put-parameter
+            --name "/<< parameters.environment >>/<< parameters.application-name >>/latest_image"
+            --type String
+            --overwrite
+            --value "${AWS_ECR_ACCOUNT_URL}/<< parameters.repo >>:<< parameters.tag >>"
