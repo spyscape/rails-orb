@@ -275,11 +275,12 @@ jobs:
       - run:
           name: Evaluate task definition template
           command: |
-            export APP_ENV="<< parameters.environment >>"
-            export APP_IMAGE="${AWS_ECR_ACCOUNT_URL}/<< parameters.repo >>:<< parameters.tag >>"
             curl -L https://assets.spyscape.net/circleci-tools/envsubst-1.20-Linux-x86_64 -o envsubst
             chmod +x envsubst
             ./envsubst < apptaskdef.json > apptaskdef-output.json
+          environment:
+            APP_ENV: << parameters.environment >>
+            APP_IMAGE: "${AWS_ECR_ACCOUNT_URL}/<< parameters.repo >>:<< parameters.tag >>"
       - aws-ecs/update-task-definition-from-json:
           task-definition-json: apptaskdef-output.json
       - aws-ecs/update-service:
