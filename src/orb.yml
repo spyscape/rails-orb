@@ -27,7 +27,7 @@ executors:
         type: boolean
 
     docker:
-      - image: circleci/ruby:<< parameters.ruby-version >><< parameters.image-options >>
+      - image: cimg/ruby:<< parameters.ruby-version >><< parameters.image-options >>
         environment:
           RAILS_ENV: test
           RACK_ENV: test
