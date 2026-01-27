@@ -138,7 +138,7 @@ jobs:
         description: Docker image options to append to the Ruby image tag
         type: string
       postgres-version:
-        default: "9.6"
+        default: "13.2"
         description: PostgreSQL version to use
         type: string
       pg-user:
